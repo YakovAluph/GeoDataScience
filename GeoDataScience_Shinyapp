@@ -13,9 +13,9 @@ library(data.table)
 ui <- fluidPage(
   theme = shinytheme("flatly"),
   useShinyjs(),
-
+  
   titlePanel("Variogram, Kriging & Interactive Map"),
-
+  
   sidebarLayout(
     sidebarPanel(
       fileInput("file", "Upload CSV File", accept = ".csv"),
@@ -35,7 +35,7 @@ ui <- fluidPage(
       br(), br(),
       h5("Note: Ensure that your dataset contains X, Y coordinates and a value column.")
     ),
-
+    
     mainPanel(
       tabsetPanel(
         tabPanel("Data", tableOutput("dataPreview")),
@@ -56,15 +56,15 @@ ui <- fluidPage(
 
 # Server
 server <- function(input, output, session) {
-
+  
   userData <- reactive({
     req(input$file)
     data <- fread(input$file$datapath)
     return(data)
   })
-
+  
   output$dataPreview <- renderTable({ userData() })
-
+  
   output$columnSelectors <- renderUI({
     req(userData())
     cols <- names(userData())
@@ -74,33 +74,33 @@ server <- function(input, output, session) {
       selectInput("valcol", "Value Column", choices = cols)
     )
   })
-
+  
   observeEvent(input$plotBtn, {
     withProgress(message = "Running Analysis...", value = 0, {
       incProgress(0.1, detail = "Loading data...")
       data <- userData()
-
+      
       data[[input$xcol]] <- as.numeric(data[[input$xcol]])
       data[[input$ycol]] <- as.numeric(data[[input$ycol]])
-
+      
       # Remove invalid rows
       data <- na.omit(data[, c(input$xcol, input$ycol, input$valcol), with = FALSE])
-
+      
       # Apply jitter to reduce perfect duplicates
       data[[input$xcol]] <- jitter(data[[input$xcol]], factor = 0.001)
       data[[input$ycol]] <- jitter(data[[input$ycol]], factor = 0.001)
-
+      
       # Coordinates
       coordinates(data) <- c(input$xcol, input$ycol)
       crs_string <- if (input$crsType == "longlat") "+proj=longlat +datum=WGS84" else "+proj=utm +zone=33 +datum=WGS84"
       proj4string(data) <- CRS(crs_string)
-
+      
       formula_str <- as.formula(paste(input$valcol, "~ 1"))
-
+      
       incProgress(0.4, detail = "Fitting variogram...")
       vgm_exp <- variogram(formula_str, data)
       vgm_model <- fit.variogram(vgm_exp, model = vgm(input$modelType))
-
+      
       incProgress(0.6, detail = "Creating grid...")
       bbox_vals <- bbox(data)
       x_range <- seq(bbox_vals[1,1], bbox_vals[1,2], length.out = input$gridResolution)
@@ -108,16 +108,16 @@ server <- function(input, output, session) {
       grid <- expand.grid(x = x_range, y = y_range)
       coordinates(grid) <- ~x + y
       proj4string(grid) <- CRS(crs_string)
-
+      
       incProgress(0.8, detail = "Performing kriging...")
       kriged <- krige(formula_str, data, grid, model = vgm_model)
-
+      
       incProgress(1, detail = "Rendering output...")
-
+      
       output$variogramPlot <- renderPlot({
         plot(vgm_exp, model = vgm_model, main = paste("Variogram -", input$modelType))
       })
-
+      
       output$semiVariogramPlot <- renderPlot({
         ggplot(vgm_exp, aes(x = dist, y = gamma)) +
           geom_point(color = "darkred", size = 2) +
@@ -125,7 +125,7 @@ server <- function(input, output, session) {
           labs(title = paste("Semi-Variogram (", input$modelType, ")"), x = "Distance", y = "Semi-variance") +
           theme_minimal()
       })
-
+      
       output$krigingPlot <- renderPlot({
         kriged_df <- as.data.frame(kriged)
         ggplot(kriged_df, aes(x = x, y = y, fill = var1.pred)) +
@@ -134,7 +134,7 @@ server <- function(input, output, session) {
           scale_fill_viridis_c(name = "Prediction") +
           theme_minimal()
       })
-
+      
       output$krigingMap <- renderLeaflet({
         r <- rasterFromXYZ(as.data.frame(kriged)[, c("x", "y", "var1.pred")])
         crs(r) <- CRS(crs_string)
@@ -142,12 +142,12 @@ server <- function(input, output, session) {
         leaflet() %>% addTiles() %>% addRasterImage(r, colors = pal, opacity = 0.7) %>%
           addLegend(pal = pal, values = values(r), title = "Kriging")
       })
-
+      
       output$downloadKriging <- downloadHandler(
         filename = function() paste0("kriging_results_", Sys.Date(), ".csv"),
         content = function(file) write.csv(as.data.frame(kriged), file, row.names = FALSE)
       )
-
+      
       output$downloadVariogram <- downloadHandler(
         filename = function() paste0("variogram_plot_", Sys.Date(), ".png"),
         content = function(file) {
@@ -158,29 +158,29 @@ server <- function(input, output, session) {
       )
     })
   })
-
+  
   observeEvent(input$cvBtn, {
     withProgress(message = "Running Cross-Validation...", value = 0, {
       data <- userData()
       data[[input$xcol]] <- as.numeric(data[[input$xcol]])
       data[[input$ycol]] <- as.numeric(data[[input$ycol]])
-
+      
       data <- na.omit(data[, c(input$xcol, input$ycol, input$valcol), with = FALSE])
       data[[input$xcol]] <- jitter(data[[input$xcol]], factor = 0.001)
       data[[input$ycol]] <- jitter(data[[input$ycol]], factor = 0.001)
-
+      
       coordinates(data) <- c(input$xcol, input$ycol)
       crs_string <- if (input$crsType == "longlat") "+proj=longlat +datum=WGS84" else "+proj=utm +zone=33 +datum=WGS84"
       proj4string(data) <- CRS(crs_string)
-
+      
       formula_str <- as.formula(paste(input$valcol, "~ 1"))
       vgm_exp <- variogram(formula_str, data)
       vgm_model <- fit.variogram(vgm_exp, model = vgm(input$modelType))
-
+      
       n <- nrow(data)
       pred <- numeric(n)
       obs <- numeric(n)
-
+      
       for (i in 1:n) {
         train_data <- data[-i, ]
         test_data <- data[i, , drop = FALSE]
@@ -194,7 +194,7 @@ server <- function(input, output, session) {
         }
         if (i %% 10 == 0) incProgress(i/n, detail = paste("Sample", i))
       }
-
+      
       output$cvPlot <- renderPlot({
         ggplot(data.frame(obs, pred), aes(x = obs, y = pred)) +
           geom_point(color = "darkblue") +
@@ -202,7 +202,7 @@ server <- function(input, output, session) {
           theme_minimal() +
           labs(title = "Cross-Validation", x = "Observed", y = "Predicted")
       })
-
+      
       output$downloadCV <- downloadHandler(
         filename = function() paste0("cv_results_", Sys.Date(), ".csv"),
         content = function(file) {
