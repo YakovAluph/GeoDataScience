@@ -15,8 +15,8 @@ The app supports:
 
 ## Author Information
 
-- **[Yakov Aluph]([https://github.com/YOUR_GITHUB](https://github.com/YakovAluph))** – *Senior Developer*  
-- **[Professor Ashok Krishnamurthy]([https://github.com/ashokkrish](https://github.com/ashokkrish))** – *Supervisor*
+- **[Yakov Aluph](https://github.com/YOUR_GITHUB)** – *Senior Developer*  
+- **[Professor Ashok Krishnamurthy](https://github.com/ashokkrish)** – *Supervisor*
 
 ## How to Use
 
