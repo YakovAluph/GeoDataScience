@@ -12,7 +12,7 @@ The app supports:
 - Geospatial coordinate support (Latitude/Longitude or Easting/Northing)
 - Kriging raster visualizations
 - Downloadable outputs (CSV, PNG)
-- Deployable via [ShinyApps.io](https://www.shinyapps.io/) or locally.
+- Deployable via [ShinyApps.io](https://www.shinyapps.io/) or locally on R Studio (recommended option for optimal RAM usage).
 
 ## 🔗 Author Information
 
