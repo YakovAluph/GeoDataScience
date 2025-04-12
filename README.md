@@ -1,6 +1,6 @@
 # Variogram & Kriging Shiny App
 
-## Project Description
+## 📌 Project Description
 
 This interactive Shiny web application allows users to upload geospatial datasets, explore and visualize **variograms**, perform **ordinary kriging**, and generate **interactive spatial maps** using `leaflet`. It is designed to assist researchers, geoscientists, and students in understanding spatial interpolation and geostatistics through an easy-to-use visual platform.
 
@@ -12,13 +12,14 @@ The app supports:
 - Geospatial coordinate support (Latitude/Longitude or Easting/Northing)
 - Kriging raster visualizations
 - Downloadable outputs (CSV, PNG)
+- Deployable via [ShinyApps.io](https://www.shinyapps.io/) or locally.
 
-## Author Information
+## 🔗 Author Information
 
 - **[Yakov Aluph](https://github.com/YakovAluph)** – *Senior Developer*  
 - **[Professor Ashok Krishnamurthy](https://github.com/ashokkrish)** – *Supervisor*
 
-## How to Use
+## 💻 How to Use
 
 1. Upload a `.csv` file with at least three columns: X, Y, and a value column (e.g., groundwater level).
 2. Choose the coordinate type (Lat/Lon or Easting/Northing).
@@ -27,7 +28,14 @@ The app supports:
 5. Use "Run Cross-Validation" for accuracy check.
 6. Download results via buttons on the main panel.
 
-## Technologies Used
+## 🗃️ Files
+
+- `global.R` – Global variables and setup.
+- `ui.R` – UI layout using `shiny`.
+- `server.R` – Server logic: data wrangling, modeling, visualization.
+- `README.md` – Project description and usage guide.
+
+## 🚀 Technologies Used
 
 - [R](https://www.r-project.org/)
 - [Shiny](https://shiny.posit.co/)
