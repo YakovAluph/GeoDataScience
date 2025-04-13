@@ -10,7 +10,8 @@ shinyUI(fluidPage(
   
   sidebarLayout(
     sidebarPanel(
-      fileInput("file", "Upload CSV File", accept = ".csv"),
+      fileInput("file", "Upload Data File", 
+                accept = c(".csv", ".xls", ".xlsx")),
       uiOutput("columnSelectors"),
       selectInput("coordType", "Coordinate Type:",
                   choices = c("Latitude/Longitude" = "longlat",
