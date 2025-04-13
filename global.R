@@ -1,4 +1,5 @@
 # Load libraries
+library(readxl)   # NEW: for reading .xls and .xlsx files
 library(shiny)
 library(shinythemes)
 library(shinyjs)
