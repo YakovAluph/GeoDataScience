@@ -21,7 +21,7 @@ The app supports:
 
 ## 💻 How to Use
 
-1. Upload a `.csv` file with at least three columns: X, Y, and a value column (e.g., groundwater level).
+1. Upload a `.csv`, `.txt`, `xls`, or a `xlsx` file with at least three columns: X, Y, and a value column (e.g., groundwater level).
 2. Choose the coordinate type (Lat/Lon or Easting/Northing).
 3. Select the variogram model.
 4. Click "Run Analysis" to view plots and maps.
