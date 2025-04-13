@@ -1,5 +1,6 @@
 library(shiny)
 library(shinyjs)
+library(shinyFeedback)
 library(gstat)
 library(sp)
 library(ggplot2)
@@ -10,24 +11,36 @@ library(dplyr)
 
 shinyServer(function(input, output, session) {
   
+  useShinyFeedback()
+  
   # Reactive expression to read and preview the data
   userData <- reactive({
     req(input$file)
     ext <- tools::file_ext(input$file$name)
     
-    switch(ext,
-           csv = fread(input$file$datapath),
-           xls = read_excel(input$file$datapath),
-           xlsx = read_excel(input$file$datapath),
-           stop("Unsupported file type. Please upload a .csv, .xls, or .xlsx file.")
-    )
+    tryCatch({
+      data <- switch(ext,
+                     csv = fread(input$file$datapath),
+                     txt = fread(input$file$datapath),
+                     xls = readxl::read_excel(input$file$datapath),
+                     xlsx = readxl::read_excel(input$file$datapath),
+                     stop("Unsupported file type"))
+      
+      hideFeedback("file")
+      shinyjs::show("resultsPanel")
+      return(data)
+    }, error = function(e) {
+      showFeedbackDanger("file", TRUE, paste("File error:", e$message))
+      return(NULL)
+    })
   })
   
   output$dataPreview <- renderTable({
-    userData()
+    req(userData())
+    head(userData(), 10)
   })
   
-  # Dynamically render column selectors based on input file
+  # Dynamically render column selectors
   output$columnSelectors <- renderUI({
     req(userData())
     cols <- names(userData())
@@ -39,24 +52,39 @@ shinyServer(function(input, output, session) {
     )
   })
   
-  # Clean and prepare data for analysis
+  # Reset button
+  observeEvent(input$resetBtn, {
+    shinyjs::hide("resultsPanel")
+    output$dataPreview <- renderTable({})
+    output$variogramPlot <- renderPlot({})
+    output$semiVariogramPlot <- renderPlot({})
+    output$krigingPlot <- renderPlot({})
+    output$cvPlot <- renderPlot({})
+    output$krigingMap <- renderLeaflet({})
+  })
+  
+  # Prepare spatial data
   cleanAndPrepareData <- reactive({
-    req(input$xcol, input$ycol, input$valcol)
+    req(userData(), input$xcol, input$ycol, input$valcol)
     data <- userData()
+    
+    # Validate columns
+    if (any(!c(input$xcol, input$ycol, input$valcol) %in% names(data))) {
+      showFeedbackDanger("columnSelectors", TRUE, "Invalid column selection.")
+      return(NULL)
+    }
     
     data[[input$xcol]] <- as.numeric(data[[input$xcol]])
     data[[input$ycol]] <- as.numeric(data[[input$ycol]])
     data[[input$valcol]] <- as.numeric(data[[input$valcol]])
     
-    # Filter NA rows
+    # Remove NA and group duplicates
     data <- na.omit(data[, c(input$xcol, input$ycol, input$valcol), with = FALSE])
-    
-    # Remove true duplicate coordinate pairs
-    data <- data %>% 
-      group_by_at(c(input$xcol, input$ycol)) %>% 
+    data <- data %>%
+      group_by_at(c(input$xcol, input$ycol)) %>%
       summarise(across(all_of(input$valcol), mean), .groups = "drop")
     
-    # Jitter to reduce exact duplicates and avoid singular covariance
+    # Jitter slightly
     set.seed(42)
     data[[input$xcol]] <- jitter(data[[input$xcol]], factor = 0.0001)
     data[[input$ycol]] <- jitter(data[[input$ycol]], factor = 0.0001)
@@ -66,14 +94,16 @@ shinyServer(function(input, output, session) {
     if (input$coordType == "longlat") {
       proj4string(data) <- CRS("+proj=longlat +datum=WGS84")
     } else {
-      proj4string(data) <- CRS("+proj=utm +zone=33 +datum=WGS84")  # Adjust zone if needed
+      proj4string(data) <- CRS("+proj=utm +zone=33 +datum=WGS84")
     }
     
     return(data)
   })
   
+  # Main analysis and plotting
   observeEvent(input$plotBtn, {
     data <- cleanAndPrepareData()
+    req(data)
     
     withProgress(message = 'Running Analysis...', value = 0.1, {
       formula_str <- as.formula(paste(input$valcol, "~ 1"))
@@ -81,7 +111,7 @@ shinyServer(function(input, output, session) {
       vgm_exp <- variogram(formula_str, data)
       vgm_model <- fit.variogram(vgm_exp, model = vgm(input$modelType))
       
-      incProgress(0.3, "Fitting Model")
+      incProgress(0.3, "Fitting Variogram")
       
       output$variogramPlot <- renderPlot({
         plot(vgm_exp, model = vgm_model, main = paste("Variogram -", input$modelType))
@@ -97,6 +127,20 @@ shinyServer(function(input, output, session) {
           ) +
           theme_minimal()
       })
+      
+      output$downloadVariogram <- downloadHandler(
+        filename = function() {
+          paste0("variogram_plot_", input$modelType, "_", Sys.Date(), ".png")
+        },
+        content = function(file) {
+          png(file, width = 800, height = 600)
+          plot(vgm_exp, model = vgm_model, main = paste("Variogram -", input$modelType))
+          dev.off()
+        }
+      )
+      
+      # Skip further processing if quick preview selected
+      if (input$quickPreview) return()
       
       incProgress(0.6, "Running Kriging")
       
@@ -120,20 +164,6 @@ shinyServer(function(input, output, session) {
           theme_minimal()
       })
       
-      r <- rasterFromXYZ(as.data.frame(kriged)[, c("x", "y", "var1.pred")])
-      crs(r) <- CRS(proj4string(data))
-      
-      output$krigingMap <- renderLeaflet({
-        pal <- colorNumeric("viridis", values(r), na.color = "transparent")
-        
-        leaflet() %>%
-          addTiles() %>%
-          addRasterImage(r, colors = pal, opacity = 0.7) %>%
-          addLegend(pal = pal, values = values(r), title = "Kriging")
-      })
-      
-      incProgress(1, "Done")
-      
       output$downloadKriging <- downloadHandler(
         filename = function() {
           paste0("kriging_results_", input$modelType, "_", Sys.Date(), ".csv")
@@ -143,21 +173,25 @@ shinyServer(function(input, output, session) {
         }
       )
       
-      output$downloadVariogram <- downloadHandler(
-        filename = function() {
-          paste0("variogram_plot_", input$modelType, "_", Sys.Date(), ".png")
-        },
-        content = function(file) {
-          png(file, width = 800, height = 600)
-          plot(vgm_exp, model = vgm_model, main = paste("Variogram -", input$modelType))
-          dev.off()
-        }
-      )
+      r <- rasterFromXYZ(as.data.frame(kriged)[, c("x", "y", "var1.pred")])
+      crs(r) <- CRS(proj4string(data))
+      
+      output$krigingMap <- renderLeaflet({
+        pal <- colorNumeric("viridis", values(r), na.color = "transparent")
+        leaflet() %>%
+          addTiles() %>%
+          addRasterImage(r, colors = pal, opacity = 0.7) %>%
+          addLegend(pal = pal, values = values(r), title = "Kriging")
+      })
+      
+      incProgress(1, "Done")
     })
   })
   
+  # Cross-validation logic
   observeEvent(input$cvBtn, {
     data <- cleanAndPrepareData()
+    req(data)
     
     withProgress(message = 'Cross-validating...', value = 0, {
       n <- nrow(data)
