@@ -13,7 +13,14 @@ shinyServer(function(input, output, session) {
   # Reactive expression to read and preview the data
   userData <- reactive({
     req(input$file)
-    fread(input$file$datapath)
+    ext <- tools::file_ext(input$file$name)
+    
+    switch(ext,
+           csv = fread(input$file$datapath),
+           xls = read_excel(input$file$datapath),
+           xlsx = read_excel(input$file$datapath),
+           stop("Unsupported file type. Please upload a .csv, .xls, or .xlsx file.")
+    )
   })
   
   output$dataPreview <- renderTable({
