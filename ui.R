@@ -1,79 +1,88 @@
 library(shiny)
 library(shinythemes)
 library(shinyjs)
-library(shinyFeedback)  # NEW
 
 shinyUI(fluidPage(
   theme = shinytheme("flatly"),
   useShinyjs(),
-  useShinyFeedback(),  # Enable feedback
   
+  # Custom CSS styling
   tags$head(
     tags$style(HTML("
-      .btn-primary { background-color: #1b6ec2; border-color: #1b6ec2; }
-      .btn-info { background-color: #17a2b8; }
-      .btn-danger { background-color: #dc3545; }
-      h5, h4, h3 { color: #2c3e50; }
+      .btn-custom {
+        background-color: #18536f;
+        color: white;
+        border-color: #18536f;
+      }
+      .btn-custom:hover {
+        background-color: #143f52;
+        border-color: #143f52;
+      }
+      .btn-reset {
+        background-color: #8B0000;
+        color: white;
+        border-color: #8B0000;
+      }
+      .btn-reset:hover {
+        background-color: #6b0000;
+        border-color: #6b0000;
+      }
+      .download-button .btn {
+        background-color: #18536f;
+        color: white;
+        border-color: #18536f;
+      }
+      .download-button .btn:hover {
+        background-color: #143f52;
+        border-color: #143f52;
+      }
+      .tab-disabled .nav-link {
+        color: gray !important;
+        pointer-events: none;
+      }
+      .tab-enabled .nav-link {
+        color: #18536f !important;
+        font-weight: bold;
+      }
     "))
   ),
   
-  titlePanel("🌍 GeoDataScience: Interactive Variogram & Kriging Tool"),
+  # Title
+  titlePanel("GeoDataScience: An interactive tool for Variogram and Kriging"),
   
   sidebarLayout(
     sidebarPanel(
-      fileInput("file", strong("Upload your data"),
+      tags$b("Upload your data (.csv, .txt, .xls, or .xlsx)"),
+      fileInput("file", NULL,
                 accept = c(".csv", ".txt", ".xls", ".xlsx")),
       
       uiOutput("columnSelectors"),
       
-      selectInput("coordType", 
-                  label = "Coordinate Type:",
+      selectInput("coordType", "Coordinate Type:",
                   choices = c("Latitude/Longitude" = "longlat",
                               "Easting/Northing (UTM or other)" = "projected")),
-      tags$small("Tip: Choose projected for UTM or similar coordinates."),
-      
       selectInput("modelType", "Choose Variogram Model:",
                   choices = c("Spherical" = "Sph",
                               "Exponential" = "Exp",
                               "Gaussian" = "Gau",
                               "Matern" = "Mat")),
-      tags$small("These influence how spatial continuity is modeled."),
-      
-      sliderInput("gridResolution", 
-                  "Grid Resolution:",
+      sliderInput("gridResolution", "Grid Resolution (number of points):",
                   min = 10, max = 200, value = 50, step = 10),
-      tags$small("Higher values = finer resolution (slower performance)"),
       
-      checkboxInput("quickPreview", 
-                    "Quick Preview (Skip Kriging/Map)", value = FALSE),
+      checkboxInput("quickPreview", "Quick Preview (Only Variogram)", value = FALSE),
       
-      actionButton("plotBtn", "Run Analysis", class = "btn-primary"),
-      actionButton("cvBtn", "Run Cross-Validation", class = "btn-info"),
-      actionButton("resetBtn", "Reset Values", class = "btn-danger"),
+      actionButton("plotBtn", "Run Analysis", class = "btn btn-custom"),
+      actionButton("cvBtn", "Run Cross-Validation", class = "btn btn-custom"),
+      actionButton("resetBtn", "Reset Values", class = "btn btn-reset"),
       
       br(), br(),
-      h5("Note: Your file must include X/Y coordinates and a value column.")
+      h5("Note: Ensure that your dataset contains X, Y coordinates and a value column.")
     ),
     
     mainPanel(
-      shinyjs::hidden(
-        div(id = "resultsPanel",
-            tabsetPanel(
-              tabPanel("Data", tableOutput("dataPreview")),
-              tabPanel("Variogram",
-                       plotOutput("variogramPlot"),
-                       plotOutput("semiVariogramPlot"),
-                       downloadButton("downloadVariogram", "Download Variogram Plot")),
-              tabPanel("Kriging",
-                       plotOutput("krigingPlot"),
-                       downloadButton("downloadKriging", "Download Kriging CSV")),
-              tabPanel("Map", leafletOutput("krigingMap", height = 600)),
-              tabPanel("Cross-Validation",
-                       plotOutput("cvPlot"),
-                       downloadButton("downloadCV", "Download CV Results"))
-            )
-        )
-      )
+      uiOutput("dataWarning"),  # for showing warnings like "X and Y cannot be same"
+      
+      uiOutput("mainTabs")  # dynamic rendering of the tabsetPanel
     )
   )
 ))
