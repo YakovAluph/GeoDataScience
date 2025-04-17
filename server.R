@@ -11,10 +11,11 @@ library(readxl)
 
 shinyServer(function(input, output, session) {
   
+  # Flags & error storage
   dataReady <- reactiveVal(FALSE)
   errorMsg  <- reactiveVal(NULL)
   
-  # Reset: clear flag & inputs
+  # Reset
   observeEvent(input$resetBtn, {
     dataReady(FALSE)
     errorMsg(NULL)
@@ -39,11 +40,13 @@ shinyServer(function(input, output, session) {
     })
   })
   
+  # Preview table (entire dataset)
   output$dataPreview <- renderTable({
     req(userData())
-    head(userData(), 10)
+    userData()
   })
   
+  # Column selectors + quick preview
   output$columnSelectors <- renderUI({
     req(userData())
     cols <- names(userData())
@@ -55,6 +58,7 @@ shinyServer(function(input, output, session) {
     )
   })
   
+  # CV prompt/button (hidden until analysis completes)
   output$cvBox <- renderUI({
     if (dataReady()) {
       wellPanel(
@@ -65,13 +69,12 @@ shinyServer(function(input, output, session) {
     }
   })
   
+  # Dynamic tabset: only Data tab until analysis completes
   output$mainTabs <- renderUI({
     if (!dataReady()) {
       tagList(
-        div(
-          style = "color: #18536f; font-style: italic; margin-bottom: 10px;",
-          "Please upload a valid dataset and click \"Run Analysis\" to view the other tabs."
-        ),
+        div(style = "color:#18536f; font-style:italic; margin-bottom:10px;",
+            "Please upload a valid dataset and click \"Run Analysis\" to view the other tabs."),
         tabsetPanel(
           tabPanel("Data", tableOutput("dataPreview"))
         )
@@ -108,14 +111,17 @@ shinyServer(function(input, output, session) {
     }
   })
   
+  # Display errors
   output$dataWarning <- renderUI({
     req(errorMsg())
-    div(style = "color: red; font-weight: bold;", errorMsg())
+    div(style = "color:red; font-weight:bold;", errorMsg())
   })
   
+  # Clean and prepare spatial data
   cleanAndPrepareData <- reactive({
     req(userData(), input$xcol, input$ycol, input$valcol)
     
+    # Prevent same X/Y
     if (input$xcol == input$ycol) {
       errorMsg("X and Y coordinate columns cannot be the same.")
       dataReady(FALSE)
@@ -128,11 +134,12 @@ shinyServer(function(input, output, session) {
     df[[input$valcol]] <- as.numeric(df[[input$valcol]])
     df <- na.omit(df[, c(input$xcol, input$ycol, input$valcol), with = FALSE])
     
+    # Aggregate duplicates
     df <- df %>%
       group_by_at(c(input$xcol, input$ycol)) %>%
-      summarise(across(all_of(input$valcol), mean),
-                .groups = "drop")
+      summarise(across(all_of(input$valcol), mean), .groups = "drop")
     
+    # Jitter to avoid singularities
     set.seed(42)
     df[[input$xcol]] <- jitter(df[[input$xcol]], factor = 1e-4)
     df[[input$ycol]] <- jitter(df[[input$ycol]], factor = 1e-4)
@@ -141,6 +148,7 @@ shinyServer(function(input, output, session) {
     xvals <- coordinates(df)[,1]
     yvals <- coordinates(df)[,2]
     
+    # Validate CRS input
     if (input$coordType == "longlat") {
       if (any(xvals < -180 | xvals > 180, na.rm = TRUE) ||
           any(yvals <  -90 | yvals >   90, na.rm = TRUE)) {
@@ -171,6 +179,7 @@ shinyServer(function(input, output, session) {
     df
   })
   
+  # Run Analysis: variogram + kriging
   observeEvent(input$plotBtn, {
     errorMsg(NULL)
     df <- cleanAndPrepareData()
@@ -180,7 +189,7 @@ shinyServer(function(input, output, session) {
       fmla    <- as.formula(paste(input$valcol, "~ 1"))
       vgm_exp <- variogram(fmla, df)
       
-      # Construct initial guess
+      # Initial variogram guess
       initial <- vgm(
         psill = var(df[[input$valcol]], na.rm = TRUE),
         model = input$modelType,
@@ -188,7 +197,7 @@ shinyServer(function(input, output, session) {
         nugget = 0
       )
       
-      # Attempt variogram fit, catch singular warnings
+      # Fit variogram, catch singularities
       vgm_model <- tryCatch({
         withCallingHandlers(
           fit.variogram(vgm_exp,
@@ -199,7 +208,7 @@ shinyServer(function(input, output, session) {
           warning = function(w) {
             showModal(modalDialog(
               title = "Variogram Fit Warning",
-              "Variogram model is singular. Try a different model type or check data.",
+              "Variogram model is singular. Try a different model or check data.",
               easyClose = TRUE
             ))
             invokeRestart("muffleWarning")
@@ -213,16 +222,16 @@ shinyServer(function(input, output, session) {
         ))
         return(NULL)
       })
-      
       req(vgm_model)
       incProgress(0.3, "Fitting Variogram")
       
+      # Render variogram plots
       output$variogramPlot <- renderPlot({
         plot(vgm_exp, model = vgm_model,
              main = paste("Variogram -", input$modelType))
       })
       output$semiVariogramPlot <- renderPlot({
-        ggplot(vgm_exp, aes(x = dist, y = gamma)) +
+        ggplot(vgm_exp, aes(dist, gamma)) +
           geom_point(color = "darkred", size = 2) +
           geom_line(color = "steelblue", linewidth = 1) +
           labs(
@@ -243,31 +252,34 @@ shinyServer(function(input, output, session) {
         }
       )
       
+      # Skip kriging if quickPreview
       if (input$quickPreview) {
         incProgress(1)
         return()
       }
       
+      # Kriging
       incProgress(0.6, "Running Kriging")
       grid_res <- input$gridResolution
-      b        <- bbox(df)
-      xr       <- seq(b[1,1], b[1,2], length.out = grid_res)
-      yr       <- seq(b[2,1], b[2,2], length.out = grid_res)
-      grid     <- expand.grid(x = xr, y = yr)
+      b <- bbox(df)
+      xr <- seq(b[1,1], b[1,2], length.out = grid_res)
+      yr <- seq(b[2,1], b[2,2], length.out = grid_res)
+      grid <- expand.grid(x = xr, y = yr)
       coordinates(grid) <- ~ x + y
-      proj4string(grid) <- CRS(proj4string(df))  # correct CRS assignment
+      proj4string(grid) <- CRS(proj4string(df))
       
       kriged <- krige(fmla, df, grid, model = vgm_model)
       
-      # Prepare palette
+      # Palette
       vals <- kriged$var1.pred
       pal  <- colorNumeric("viridis",
                            domain = range(vals, na.rm = TRUE),
                            na.color = "transparent")
       
+      # Kriging plot
       output$krigingPlot <- renderPlot({
         ddf <- as.data.frame(kriged)
-        ggplot(ddf, aes(x = x, y = y, fill = var1.pred)) +
+        ggplot(ddf, aes(x, y, fill = var1.pred)) +
           geom_tile() +
           coord_equal() +
           scale_fill_viridis_c(name = "Prediction") +
@@ -283,9 +295,9 @@ shinyServer(function(input, output, session) {
         }
       )
       
+      # Leaflet map
       r <- rasterFromXYZ(as.data.frame(kriged)[, c("x", "y", "var1.pred")])
-      crs(r) <- CRS(proj4string(df))  # ensure CRS is set as a CRS object
-      
+      crs(r) <- CRS(proj4string(df))
       output$krigingMap <- renderLeaflet({
         leaflet() %>%
           addTiles() %>%
@@ -297,12 +309,13 @@ shinyServer(function(input, output, session) {
     })
   })
   
+  # Cross‑Validation
   observeEvent(input$cvBtn, {
     req(dataReady())
     df <- cleanAndPrepareData()
     req(df)
     
-    withProgress(message = "Cross-validating...", value = 0, {
+    withProgress(message = "Cross‑validating...", value = 0, {
       n   <- nrow(df)
       pred<- numeric(n)
       obs <- numeric(n)
@@ -314,22 +327,22 @@ shinyServer(function(input, output, session) {
       
       for (i in 1:n) {
         incProgress(1/n, detail = paste("Point", i, "of", n))
-        td     <- df[-i, ]
-        test   <- df[i, , drop = FALSE]
-        result <- tryCatch({
+        td   <- df[-i, ]
+        test <- df[i, , drop = FALSE]
+        res  <- tryCatch({
           krige(fmla, td, test, model = vgm_model)
         }, error = function(e) NULL)
-        pred[i] <- if (!is.null(result)) result$var1.pred else NA
+        pred[i] <- if (!is.null(res)) res$var1.pred else NA
         obs [i] <- test[[input$valcol]]
       }
       
       output$cvPlot <- renderPlot({
-        dft <- data.frame(Observed = obs, Predicted = pred)
-        ggplot(dft, aes(x = Observed, y = Predicted)) +
+        dfc <- data.frame(Observed = obs, Predicted = pred)
+        ggplot(dfc, aes(Observed, Predicted)) +
           geom_point(color = "blue") +
           geom_abline(slope = 1, intercept = 0,
                       color = "red", linetype = "dashed") +
-          labs(title = "Cross-Validation: Observed vs Predicted") +
+          labs(title = "Cross‑Validation: Observed vs Predicted") +
           theme_minimal()
       })
       output$downloadCV <- downloadHandler(
