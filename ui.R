@@ -72,7 +72,9 @@ shinyUI(fluidPage(
       checkboxInput("quickPreview", "Quick Preview (Only Variogram)", value = FALSE),
       
       actionButton("plotBtn", "Run Analysis", class = "btn btn-custom"),
-      actionButton("cvBtn", "Run Cross-Validation", class = "btn btn-custom"),
+      
+      uiOutput("cvBox"),           # ← dynamically-rendered CV prompt/button
+      
       actionButton("resetBtn", "Reset Values", class = "btn btn-reset"),
       
       br(), br(),
@@ -80,9 +82,9 @@ shinyUI(fluidPage(
     ),
     
     mainPanel(
-      uiOutput("dataWarning"),  # for showing warnings like "X and Y cannot be same"
+      uiOutput("dataWarning"),     # for showing warnings like "X and Y cannot be same"
       
-      uiOutput("mainTabs")  # dynamic rendering of the tabsetPanel
+      uiOutput("mainTabs")         # dynamic rendering of the tabsetPanel
     )
   )
 ))
