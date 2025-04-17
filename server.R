@@ -40,6 +40,16 @@ shinyServer(function(input, output, session) {
     })
   })
   
+  # Show red message under fileInput if no file is uploaded
+  output$fileRequiredMsg <- renderUI({
+    if (is.null(input$file)) {
+      div(style = "color: red; font-weight: bold; padding-top: 5px;",
+          "Please upload file.")
+    } else {
+      NULL
+    }
+  })
+  
   # Preview table (entire dataset)
   output$dataPreview <- renderTable({
     req(userData())
@@ -53,8 +63,7 @@ shinyServer(function(input, output, session) {
     tagList(
       selectInput("xcol", "X Coordinate", choices = cols),
       selectInput("ycol", "Y Coordinate", choices = cols),
-      selectInput("valcol", "Value Column", choices = cols),
-      checkboxInput("quickPreview", "Quick Preview (Variogram only)", FALSE)
+      selectInput("valcol", "Value Column", choices = cols)
     )
   })
   
