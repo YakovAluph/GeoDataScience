@@ -53,8 +53,13 @@ shinyUI(fluidPage(
   sidebarLayout(
     sidebarPanel(
       tags$b("Upload your data (.csv, .txt, .xls, or .xlsx)"),
-      fileInput("file", NULL,
-                accept = c(".csv", ".txt", ".xls", ".xlsx")),
+      
+      # File upload with red warning message
+      tags$div(
+        fileInput("file", NULL,
+                  accept = c(".csv", ".txt", ".xls", ".xlsx")),
+        uiOutput("fileRequiredMsg")  # NEW: red text if file not uploaded
+      ),
       
       uiOutput("columnSelectors"),
       
@@ -72,9 +77,7 @@ shinyUI(fluidPage(
       checkboxInput("quickPreview", "Quick Preview (Only Variogram)", value = FALSE),
       
       actionButton("plotBtn", "Run Analysis", class = "btn btn-custom"),
-      
-      uiOutput("cvBox"),           # ← dynamically-rendered CV prompt/button
-      
+      uiOutput("cvBox"),
       actionButton("resetBtn", "Reset Values", class = "btn btn-reset"),
       
       br(), br(),
@@ -82,9 +85,8 @@ shinyUI(fluidPage(
     ),
     
     mainPanel(
-      uiOutput("dataWarning"),     # for showing warnings like "X and Y cannot be same"
-      
-      uiOutput("mainTabs")         # dynamic rendering of the tabsetPanel
+      uiOutput("dataWarning"),
+      uiOutput("mainTabs")
     )
   )
 ))
