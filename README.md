@@ -29,11 +29,12 @@ The app supports:
 6. Download results via buttons on the main panel.
 
 ## 🗃️ Files
+- `README.md` – Project description and usage guide.
 
+## 🗃️ Current App version **[0.2](https://github.com/YakovAluph/GeoDataScience/tree/main/App%20files/Version%200.2%204-25-2025%20(NEW))**
 - `global.R` – Global variables and setup.
 - `ui.R` – UI layout using `shiny`.
 - `server.R` – Server logic: data wrangling, modeling, visualization.
-- `README.md` – Project description and usage guide.
 
 ## 🚀 Technologies Used
 
