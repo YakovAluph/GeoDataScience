@@ -7,7 +7,7 @@ This interactive Shiny web application allows users to upload geospatial dataset
 The app supports:
 - Multiple variogram models (Spherical, Exponential, Gaussian, Matern)
 - Real-time interactive mapping with leaflet
-- Cross-validation with downloadable results
+- Cross-validation with downloadable results (In file version 0.5 only untill further notice)
 - Automatic jittering of duplicate coordinates
 - Geospatial coordinate support (Latitude/Longitude or Easting/Northing)
 - Kriging raster visualizations
@@ -25,13 +25,13 @@ The app supports:
 2. Choose the coordinate type (Lat/Lon or Easting/Northing).
 3. Select the variogram model.
 4. Click "Run Analysis" to view plots and maps.
-5. Use "Run Cross-Validation" for accuracy check.
+5. Use "Run Cross-Validation" for accuracy check. (In file version 0.5 only untill further notice)
 6. Download results via buttons on the main panel.
 
 ## 🗃️ Files
 - `README.md` – Project description and usage guide.
 
-## 🗃️ Current App version **[0.4](https://github.com/YakovAluph/GeoDataScience/tree/main/App%20files/Version%200.4%204-28-2025%20(New))**
+## 🗃️ Current App version **[0.5.5](https://github.com/YakovAluph/GeoDataScience/tree/main/App%20files/Version%200.5.5%205-2-2025%20(NEW))**
 - `global.R` – Global variables and setup.
 - `ui.R` – UI layout using `shiny`.
 - `server.R` – Server logic: data wrangling, modeling, visualization.
