@@ -208,12 +208,12 @@ shinyServer(function(input, output, session) {
       output$semiVariogramPlot <- renderPlot({
         ggplot(vgm_exp, aes(dist, gamma)) +
           geom_point(shape=16, size=3) +
-          geom_line(size=1) +
+          geom_line(linewidth=1) +
           labs(title = paste0("Semi-Variogram (", input$modelType, ")"),
                x = "Lag distance", y = "Semivariance") +
           theme_minimal() +
           theme(
-            panel.border    = element_rect(color="black", fill=NA, size=1),
+            panel.border    = element_rect(color="black", fill=NA, linewidth=1),
             plot.title      = element_text(face="bold", size=18, hjust=0.5),
             axis.title      = element_text(size=14),
             axis.text       = element_text(size=12)
