@@ -31,7 +31,7 @@ The app supports:
 ## 🗃️ Files
 - `README.md` – Project description and usage guide.
 
-## 🗃️ Current App version **[0.8.8](https://github.com/YakovAluph/GeoDataScience/tree/main/App%20files/Version%200.8.8%207-10-2025%20(NEW))**
+## 🗃️ Current App version **[0.9](https://github.com/YakovAluph/GeoDataScience/tree/main/App%20files/Version%200.9%207-19-2025%20(NEW))**
 - `global.R` – Global variables and setup.
 - `ui.R` – UI layout using `shiny`.
 - `server.R` – Server logic: data wrangling, modeling, visualization.
