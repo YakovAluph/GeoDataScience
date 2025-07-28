@@ -119,20 +119,20 @@ shinyServer(function(input, output, session) {
                  uiOutput("variogramNote"),
                  plotOutput("variogramPlot"),
                  div(style = "color: gray; font-size: 13px; margin-top: 5px;",
-                     "💾 Copy/save image as to store your result anywhere."),
+                     "💾 Right click on the image to copy or save image on your device."),
                  plotOutput("semiVariogramPlot")),
         tabPanel("Kriging",
                  conditionalPanel("!input.quickPreview",
                                   plotOutput("krigingPlot"),
                                   div(style = "color: gray; font-size: 13px; margin-top: 5px;",
-                                      "💾 Copy/save image as to store your result anywhere."))),
+                                      "💾 Right click on the image to copy or save image on your device."))),
         tabPanel("Map",
                  conditionalPanel("!input.quickPreview",
                                   leafletOutput("krigingMap", height = 600))),
         tabPanel("Voronoi Diagram", 
                  plotOutput("voronoiPlot", height = 600),
                  div(style = "color: gray; font-size: 13px; margin-top: 5px;",
-                     "💾 Copy/save image as to store your result anywhere.")),
+                     "💾 Right click on the image to copy or save image on your device.")),
         tabPanel("Uploaded Data", tableOutput("dataPreview"))
       )
     }
