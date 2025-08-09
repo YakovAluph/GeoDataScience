@@ -14,6 +14,8 @@ library(dplyr)
 library(readxl)
 library(deldir)  # NEW
 
+source("R/variogram.R")
+
 # === Shiny Server === #
 shinyServer(function(input, output, session) {
   
@@ -29,6 +31,9 @@ shinyServer(function(input, output, session) {
     analysisRunning(FALSE)
     shinyjs::hide("stopBtn")
   })
+  
+  # NEED TO UPDATE: reset state of app to inital state 
+  # including all input cleared
   
   observeEvent(input$resetBtn, {
     dataReady(FALSE)
@@ -104,7 +109,7 @@ shinyServer(function(input, output, session) {
   # --- UI Tabs Switching Logic --- #
   output$mainTabs <- renderUI({
     if (clearedUI()) {
-      tabsetPanel(tabPanel("Data"))
+      NULL         # removed Data tabPanel
     } else if (!fileLoaded()) {
       tagList(
         div(style = "color:#18536f; font-style:italic; font-weight: bold; margin-bottom:10px;",
@@ -138,6 +143,48 @@ shinyServer(function(input, output, session) {
     }
   })
   
+  # --- VGM functions --- #
+  getVgmData <- reactive({ 
+    df <- cleanAndPrepareData(); req(df)
+    vgm <- compute_variogram(df, input$valcol, input$modelType)
+    vgm_model <- vgm$model
+    vgm_exp <- vgm$exp
+    fmla <- vgm$fmla
+    
+    return(list(
+      vgm = vgm,
+      vgm_model = vgm_model,
+      vgm_exp = vgm_exp,
+      fmla = fmla
+    ))
+  })
+  
+  output$variogramPlot <- renderPlot({
+    vgm_dat <- getVgmData()
+    vgm_model <- vgm_dat$vgm_model
+    vgm_exp <- vgm_dat$vgm_exp
+    fmla <- vgm_dat$fmla
+    
+    vgm_df <- as.data.frame(vgm_exp)
+    varline_df <- variogramLine(vgm_model,
+                                maxdist = max(vgm_exp$dist, na.rm = TRUE),
+                                n = 200)
+    make_variogram_plot(
+      vgm_exp, 
+      vgm_model, 
+      vgm_df, 
+      varline_df,
+      input$modelType
+    )
+  })
+  
+  output$semiVariogramPlot <- renderPlot({
+    vgm_dat <- getVgmData()
+    vgm_exp <- vgm_dat$vgm_exp
+
+    make_semi_variogram_plot(vgm_exp, input$modelType)
+  })
+
   # --- Main Analysis Triggered by Plot Button --- #
   observeEvent(input$plotBtn, {
     
@@ -226,15 +273,11 @@ shinyServer(function(input, output, session) {
       
       updateProgress(0.1, "Preparing Variogram") # Initial step
       
-      fmla <- as.formula(paste(input$valcol, "~ 1"))
-      vgm_exp <- variogram(fmla, df)
-      initial <- vgm(psill = var(df[[input$valcol]], na.rm=TRUE),
-                     model = input$modelType,
-                     range = diff(bbox(df)[1,]), nugget = 0)
-      vgm_model <- suppressWarnings(
-        fit.variogram(vgm_exp, model = initial,
-                      fit.sills = TRUE, fit.ranges = TRUE, fit.kappa = TRUE)
-      )
+      vgm_dat <- getVgmData()
+      vgm_model <- vgm_dat$vgm_model
+      vgm_exp <- vgm_dat$vgm_exp
+      fmla <- vgm_dat$fmla
+      
       req(analysisRunning())  # Stop if user interrupted
       
       # Check if the fitted variogram model has invalid (negative) range values
@@ -250,11 +293,6 @@ shinyServer(function(input, output, session) {
         return()
       }
       
-      vgm_df <- as.data.frame(vgm_exp)
-      varline_df <- variogramLine(vgm_model,
-                                  maxdist = max(vgm_exp$dist, na.rm = TRUE),
-                                  n = 200)
-      
       output$variogramNote <- renderUI({
         if (any(is.na(vgm_model$psill))) {
           div(style = "color: orange; padding-bottom: 5px;",
@@ -266,39 +304,8 @@ shinyServer(function(input, output, session) {
       updateProgress(0.6, "Running Kriging")
       updateProgress(1, "Finalizing")
       
-      output$variogramPlot <- renderPlot({
-        ggplot() +
-          geom_point(data = vgm_df, aes(dist, gamma), shape=16, size=3) +
-          geom_line(data = varline_df, aes(dist, gamma), linewidth=1) +
-          labs(title = paste0("Variogram (", input$modelType, ")"),
-               x = "Lag distance", y = "Semivariance") +
-          theme_minimal() +
-          theme(
-            panel.border = element_rect(color="black", fill=NA, linewidth=1),
-            plot.title = element_text(face="bold", size=18, hjust=0.5),
-            axis.title = element_text(size=14),
-            axis.text = element_text(size=12)
-          ) +
-          scale_x_continuous(expand = expansion(mult = c(0.01, 0.05))) +
-          scale_y_continuous(expand = expansion(mult = c(0.01, 0.1)))
-      })
-      
-      output$semiVariogramPlot <- renderPlot({
-        ggplot(vgm_exp, aes(dist, gamma)) +
-          geom_point(shape=16, size=3) +
-          geom_line(linewidth=1) +
-          labs(title = paste0("Semi-Variogram (", input$modelType, ")"),
-               x = "Lag distance", y = "Semivariance") +
-          theme_minimal() +
-          theme(
-            panel.border = element_rect(color="black", fill=NA, linewidth=1),
-            plot.title = element_text(face="bold", size=18, hjust=0.5),
-            axis.title = element_text(size=14),
-            axis.text = element_text(size=12)
-          ) +
-          scale_x_continuous(expand=c(0,0), limits=c(0,NA)) +
-          scale_y_continuous(expand=c(0,0), limits=c(0,NA))
-      })
+      uiOutput("variogramPlot")
+      uiOutput("semiVariogramPlot")
       
       if (input$quickPreview) {
         incProgress(1); return()
@@ -517,5 +524,5 @@ shinyServer(function(input, output, session) {
     runjs("document.getElementById('file').addEventListener('dragover', function(e) {e.preventDefault(); this.style.border='2px dashed #18536f';});")
     runjs("document.getElementById('file').addEventListener('dragleave', function(e) {this.style.border='none';});")
   })
-  
+
 })

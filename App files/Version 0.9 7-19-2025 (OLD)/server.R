@@ -115,16 +115,24 @@ shinyServer(function(input, output, session) {
       tabsetPanel(tabPanel("Data", tableOutput("dataPreview")))
     } else {
       tabsetPanel(
-        tabPanel("Variogram", uiOutput("variogramNote"), plotOutput("variogramPlot"), plotOutput("semiVariogramPlot")),
+        tabPanel("Variogram",
+                 uiOutput("variogramNote"),
+                 plotOutput("variogramPlot"),
+                 div(style = "color: gray; font-size: 13px; margin-top: 5px;",
+                     "💾 Right click on the image to copy or save image on your device."),
+                 plotOutput("semiVariogramPlot")),
         tabPanel("Kriging",
                  conditionalPanel("!input.quickPreview",
                                   plotOutput("krigingPlot"),
-                                  div(class = "download-button",
-                                      downloadButton("downloadKriging", "Download Kriging CSV")))),
+                                  div(style = "color: gray; font-size: 13px; margin-top: 5px;",
+                                      "💾 Right click on the image to copy or save image on your device."))),
         tabPanel("Map",
                  conditionalPanel("!input.quickPreview",
                                   leafletOutput("krigingMap", height = 600))),
-        tabPanel("Voronoi Diagram", plotOutput("voronoiPlot", height = 600)),
+        tabPanel("Voronoi Diagram", 
+                 plotOutput("voronoiPlot", height = 600),
+                 div(style = "color: gray; font-size: 13px; margin-top: 5px;",
+                     "💾 Right click on the image to copy or save image on your device.")),
         tabPanel("Uploaded Data", tableOutput("dataPreview"))
       )
     }
@@ -396,15 +404,6 @@ shinyServer(function(input, output, session) {
           labs(title = "Kriging Prediction", x = "X", y = "Y") +
           theme_minimal()
       })
-      
-      output$downloadKriging <- downloadHandler(
-        filename = function() {
-          paste0("kriging_results_", input$krigingType, "_", Sys.Date(), ".csv")
-        },
-        content = function(file) {
-          write.csv(ddf, file, row.names = FALSE)
-        }
-      )
       
       r <- rasterFromXYZ(ddf[, c("x", "y", "var1.pred")])
       crs(r) <- CRS(proj4string(df))
