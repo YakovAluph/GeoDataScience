@@ -25,6 +25,7 @@ shinyServer(function(input, output, session) {
   fileLoaded <- reactiveVal(FALSE)
   clearedUI  <- reactiveVal(TRUE)
   analysisRunning <- reactiveVal(FALSE)
+  selColInputsVisible <- reactiveVal(FALSE)
   
   # --- UI Reset / File Input Observers --- #
   observeEvent(input$stopBtn, {
@@ -32,22 +33,33 @@ shinyServer(function(input, output, session) {
     shinyjs::hide("stopBtn")
   })
   
-  # NEED TO UPDATE: reset state of app to inital state 
-  # including all input cleared
+  output$fileInputUI <- renderUI({
+    fileInput("file", NULL, accept = c(".csv", ".txt", ".xls", ".xlsx"))
+  })
   
   observeEvent(input$resetBtn, {
     dataReady(FALSE)
     errorMsg(NULL)
     fileLoaded(FALSE)
     clearedUI(TRUE)
-    shinyjs::reset("appForm")
+    selColInputsVisible(FALSE) 
+    shinyjs::reset("appForm") # for some reason this does not reset radioButtons to default state
+    
+    output$fileInputUI <- renderUI({
+      fileInput("file", NULL, accept = c(".csv", ".txt", ".xls", ".xlsx"))
+    })
+    
+    updateRadioButtons(session, "coordType", selected = "longlat")
+    updateRadioButtons(session, "modelType", selected = "Sph")
+    updateRadioButtons(session, "krigingType", selected = "OK")
   })
   
   observeEvent(input$file, {
     fileLoaded(TRUE)
     clearedUI(FALSE)
+    selColInputsVisible(TRUE)
   })
- 
+
   # --- Data Reading and Preprocessing --- # 
   userData <- reactive({
     req(input$file)
@@ -94,6 +106,9 @@ shinyServer(function(input, output, session) {
   # --- UI for Column Selection --- #
   output$columnSelectors <- renderUI({
     req(userData())
+    
+    if (!selColInputsVisible()) return(NULL)
+    
     cols <- names(userData())
     tagList(
       selectizeInput("xcol",  "X Coordinate (Longitude/Easting)", choices = c("Please choose variable" = "", cols)),
@@ -143,7 +158,7 @@ shinyServer(function(input, output, session) {
     }
   })
   
-  # --- VGM functions --- #
+  # --- VGM reactives --- #
   getVgmData <- reactive({ 
     df <- cleanAndPrepareData(); req(df)
     vgm <- compute_variogram(df, input$valcol, input$modelType)
@@ -159,6 +174,7 @@ shinyServer(function(input, output, session) {
     ))
   })
   
+  # --- VGM plots and output --- #
   output$variogramPlot <- renderPlot({
     vgm_dat <- getVgmData()
     vgm_model <- vgm_dat$vgm_model
@@ -166,6 +182,16 @@ shinyServer(function(input, output, session) {
     fmla <- vgm_dat$fmla
     
     vgm_df <- as.data.frame(vgm_exp)
+    
+    if (any(vgm_model$range < 0, na.rm = TRUE)) {
+      showModal(modalDialog(
+        title = "Invalid Variogram Fit",
+        "Negative range detected. Please try a different model or check your data.",
+        easyClose = TRUE
+      ))
+      return(NULL)
+    }
+    
     varline_df <- variogramLine(vgm_model,
                                 maxdist = max(vgm_exp$dist, na.rm = TRUE),
                                 n = 200)
@@ -181,9 +207,12 @@ shinyServer(function(input, output, session) {
   output$semiVariogramPlot <- renderPlot({
     vgm_dat <- getVgmData()
     vgm_exp <- vgm_dat$vgm_exp
-
+    vgm_model <- vgm_dat$vgm_model
+    
     make_semi_variogram_plot(vgm_exp, input$modelType)
   })
+  
+  
 
   # --- Main Analysis Triggered by Plot Button --- #
   observeEvent(input$plotBtn, {
@@ -275,7 +304,6 @@ shinyServer(function(input, output, session) {
       
       vgm_dat <- getVgmData()
       vgm_model <- vgm_dat$vgm_model
-      vgm_exp <- vgm_dat$vgm_exp
       fmla <- vgm_dat$fmla
       
       req(analysisRunning())  # Stop if user interrupted

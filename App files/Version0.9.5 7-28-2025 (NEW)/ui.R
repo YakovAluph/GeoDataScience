@@ -63,8 +63,7 @@ shinyUI(fluidPage(
         
         tags$b("Upload your data (.csv, .txt, .xls, or .xlsx)"),
         tags$div(
-          fileInput("file", NULL,
-                    accept = c(".csv", ".txt", ".xls", ".xlsx")),
+          uiOutput("fileInputUI"),
           div(tags$b("Drag and drop file"), style = "text-align: center; margin-top: -10px; margin-bottom: 10px;"),
           uiOutput("fileRequiredMsg")
         ),
