@@ -111,11 +111,34 @@ shinyServer(function(input, output, session) {
   })
   
   # --- Data Preview Table --- #
-  output$dataPreview <- renderTable({
+  output$dataPreview <- renderDT({
     req(userData())
-    userData()
+    
+    datatable(
+      userData(),
+      class = 'cell-border stripe hover',
+      options = list(
+        pageLength = -1,                        # default = show all
+        lengthMenu = list(c(25, 50, 100, -1),
+                          c("25", "50", "100", "All")),
+        ordering = FALSE,                    
+        searching = TRUE,               
+        autoWidth = FALSE,
+        scrollX = TRUE,
+        columnDefs = list(list(className = 'dt-left',
+                               targets = "_all"),
+                          list(width = '100px',
+                               targets = "_all"))
+      ),
+      filter = "none",                          
+      rownames = FALSE,
+      escape = FALSE
+    ) %>%
+      formatStyle(
+        columns = 1:ncol(userData()),
+        'text-align' = 'left'
+      )
   })
-  
   # --- UI for Column Selection --- #
   output$columnSelectors <- renderUI({
     req(userData())
@@ -142,10 +165,12 @@ shinyServer(function(input, output, session) {
       tagList(
         div(style = "color:#18536f; font-style:italic; font-weight: bold; margin-bottom:10px;",
             "Please upload a valid dataset"),
-        tabsetPanel(tabPanel("Data", tableOutput("dataPreview")))
+        tabsetPanel(tabPanel("Data", DTOutput("dataPreview")))
       )
     } else if (!dataReady()) {
-      tabsetPanel(tabPanel("Data", tableOutput("dataPreview")))
+      tabsetPanel(tabPanel("Data",  div(
+        style = "width: 70%; margin-left: 0;",
+        DTOutput("dataPreview"))))
     } else {
       tabsetPanel(
         tabPanel("Variogram",
@@ -169,7 +194,9 @@ shinyServer(function(input, output, session) {
                  plotOutput("voronoiPlot", height = 600),
                  div(style = "color: gray; font-size: 13px; margin-top: 5px;",
                      "💾 Right click on the image to copy or save image on your device.")),
-        tabPanel("Uploaded Data", tableOutput("dataPreview"))
+        tabPanel("Uploaded Data",  div(
+          style = "width: 70%; margin-left: 0;",  
+          DTOutput("dataPreview")))
       )
     }
   })

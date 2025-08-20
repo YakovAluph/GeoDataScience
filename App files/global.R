@@ -10,6 +10,7 @@ library(leaflet)
 library(raster)
 library(data.table)
 library(dplyr)
+library(DT)
 
 # Global options
 options(shiny.maxRequestSize = 30*1024^2)  # Increase max file upload size
