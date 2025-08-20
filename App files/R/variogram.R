@@ -44,7 +44,7 @@ make_semi_variogram_plot <- function(vgm_exp, modelType) {
   ggplot(vgm_exp, aes(dist, gamma)) +
     geom_point(shape=16, size=3) +
     geom_line(linewidth=1) +
-    labs(title = paste0("Semi-Variogram (", modelType, ")"),
+    labs(title = paste0("Semi-Variogram"),
          x = "Lag distance", y = "Semivariance") +
     theme_minimal() +
     theme(
