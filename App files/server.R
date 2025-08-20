@@ -39,13 +39,6 @@ shinyServer(function(input, output, session) {
     clearedUI(TRUE)
     selColInputsVisible(FALSE)
     plotBtnPress(FALSE)
-    
-    shinyjs::reset("appForm")
-    
-    # manually reset radioButtons to default values
-    updateRadioButtons(session, "coordType", selected = "longlat")
-    updateRadioButtons(session, "modelType", selected = "Sph")
-    updateRadioButtons(session, "krigingType", selected = "OK")
   }
   
   observeEvent(input$stopBtn, {
@@ -59,6 +52,13 @@ shinyServer(function(input, output, session) {
   
   observeEvent(input$resetBtn, {
     resetAppState(session)
+    
+    shinyjs::reset("appForm")
+    
+    # manually reset radioButtons to default values
+    updateRadioButtons(session, "coordType", selected = "longlat")
+    updateRadioButtons(session, "modelType", selected = "Sph")
+    updateRadioButtons(session, "krigingType", selected = "OK")
     
     output$fileInputUI <- renderUI({
       fileInput("file", NULL, accept = c(".csv", ".txt", ".xls", ".xlsx"))
@@ -241,7 +241,7 @@ shinyServer(function(input, output, session) {
   
   # --- Kriging helpers --- #
   
-  observeEvent(list(input$xcol, input$ycol, input$valcol), {
+  observeEvent(list(input$xcol, input$ycol, input$valcol, input$modelType, input$krigingType), {
     krigingReady(FALSE)  # signal to clear the plot
   })
   
@@ -255,14 +255,14 @@ shinyServer(function(input, output, session) {
   output$krigingPlotMessage <- renderUI({
     if (!krigingReady()) {
       div(style = "color: grey; font-weight: bold; margin-top: 13px;",
-          "Column selection changed. Press the \"Run Analysis\" button to generate the Kriging Prediction again.")
+          "The input has changed. Press the \"Run Analysis\" button to refresh the Kriging Prediction.")
     }
   })
   
   output$krigingMapMessage <- renderUI({
     if (!krigingReady()) {
       div(style = "color: grey; font-weight: bold; margin-top: 13px;",
-          "Column selection changed. Press the \"Run Analysis\" button to generate the Map again.")
+          "The input has changed. Press the \"Run Analysis\" button to refresh the Map.")
     }
   })
 
