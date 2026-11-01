@@ -13,7 +13,7 @@ The app supports:
 - Kriging raster visualizations
 - Downloadable outputs (CSV, PNG)
 - Deployable via [ShinyApps.io](https://www.shinyapps.io/) or locally on R Studio (recommended option for optimal RAM usage).
-- ShinyApp io link: (https://yakovaluph.shinyapps.io/GeoDataScienceApp/)
+- ShinyApp io link: (https://yakovaluph.shinyapps.io/geostatsapp/)
 
 ## 🔗 Author Information
 
